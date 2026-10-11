@@ -1,0 +1,33 @@
+@Signal_CRUD_Demo_Backend_HostAddress = http://localhost:5093
+
+### Get all posts
+GET {{Signal_CRUD_Demo_Backend_HostAddress}}/posts
+Accept: application/json
+
+### Get a post
+GET {{Signal_CRUD_Demo_Backend_HostAddress}}/posts/1
+Accept: application/json
+
+### Create a post
+POST {{Signal_CRUD_Demo_Backend_HostAddress}}/posts
+Content-Type: application/json
+
+{
+  "title": "A new post",
+  "body": "This post is stored in SQLite."
+}
+
+### Update a post
+PUT {{Signal_CRUD_Demo_Backend_HostAddress}}/posts/1
+Content-Type: application/json
+
+{
+  "title": "Updated post",
+  "body": "Updated content persisted in SQLite."
+}
+
+### Delete a post
+DELETE {{Signal_CRUD_Demo_Backend_HostAddress}}/posts/1
+
+### Missing post returns 404
+GET {{Signal_CRUD_Demo_Backend_HostAddress}}/posts/999999
