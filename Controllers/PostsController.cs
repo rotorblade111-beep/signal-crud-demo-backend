@@ -8,11 +8,41 @@ namespace Signal_CRUD_Demo_Backend.Controllers;
 [Route("posts")]
 public sealed class PostsController(IPostService postService) : ControllerBase
 {
-    /// <summary>Gets all posts.</summary>
+    /// <summary>Gets all posts, or a selected range when offset and limit are provided.</summary>
     [HttpGet]
     [ProducesResponseType<IReadOnlyList<PostResponse>>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<PostResponse>>> GetAll(CancellationToken cancellationToken) =>
-        Ok(await postService.GetAllAsync(cancellationToken));
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<IReadOnlyList<PostResponse>>> GetAll(
+        [FromQuery] int? offset,
+        [FromQuery] int? limit,
+        CancellationToken cancellationToken)
+    {
+        if (offset is null && limit is null)
+        {
+            return Ok(await postService.GetAllAsync(cancellationToken));
+        }
+
+        if (offset is null || limit is null)
+        {
+            ModelState.AddModelError("pagination", "Both offset and limit must be supplied together.");
+            return ValidationProblem(ModelState);
+        }
+
+        if (offset < 0)
+        {
+            ModelState.AddModelError(nameof(offset), "Offset must be zero or greater.");
+        }
+        if (limit is < 1 or > 100)
+        {
+            ModelState.AddModelError(nameof(limit), "Limit must be between 1 and 100.");
+        }
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        return Ok(await postService.GetRangeAsync(offset.Value, limit.Value, cancellationToken));
+    }
 
     /// <summary>Gets a post by ID.</summary>
     [HttpGet("{id:int}")]

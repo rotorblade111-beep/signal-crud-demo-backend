@@ -4,6 +4,18 @@
 GET {{Signal_CRUD_Demo_Backend_HostAddress}}/posts
 Accept: application/json
 
+### Get the first 10 posts
+GET {{Signal_CRUD_Demo_Backend_HostAddress}}/posts?offset=0&limit=10
+Accept: application/json
+
+### Get posts 11 through 20
+GET {{Signal_CRUD_Demo_Backend_HostAddress}}/posts?offset=10&limit=10
+Accept: application/json
+
+### Invalid range returns a validation problem
+GET {{Signal_CRUD_Demo_Backend_HostAddress}}/posts?offset=-1&limit=10
+Accept: application/json
+
 ### Get a post
 GET {{Signal_CRUD_Demo_Backend_HostAddress}}/posts/1
 Accept: application/json

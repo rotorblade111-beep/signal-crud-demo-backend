@@ -5,6 +5,10 @@ namespace Signal_CRUD_Demo_Backend.Services;
 public interface IPostService
 {
     Task<IReadOnlyList<PostResponse>> GetAllAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<PostResponse>> GetRangeAsync(
+        int offset,
+        int limit,
+        CancellationToken cancellationToken);
     Task<PostResponse?> GetByIdAsync(int id, CancellationToken cancellationToken);
     Task<PostResponse> CreateAsync(CreatePostRequest request, CancellationToken cancellationToken);
     Task<PostResponse?> UpdateAsync(int id, UpdatePostRequest request, CancellationToken cancellationToken);

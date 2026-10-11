@@ -14,6 +14,18 @@ public sealed class PostService(AppDbContext dbContext) : IPostService
             .Select(post => new PostResponse(post.Id, post.Title, post.Body))
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<PostResponse>> GetRangeAsync(
+        int offset,
+        int limit,
+        CancellationToken cancellationToken) =>
+        await dbContext.Posts
+            .AsNoTracking()
+            .OrderBy(post => post.Id)
+            .Skip(offset)
+            .Take(limit)
+            .Select(post => new PostResponse(post.Id, post.Title, post.Body))
+            .ToListAsync(cancellationToken);
+
     public async Task<PostResponse?> GetByIdAsync(int id, CancellationToken cancellationToken) =>
         await dbContext.Posts
             .AsNoTracking()
