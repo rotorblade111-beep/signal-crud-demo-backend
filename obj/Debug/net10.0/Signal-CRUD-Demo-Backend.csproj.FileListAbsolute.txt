@@ -62,3 +62,4 @@ C:\Users\nawsad\source\repos\Signal-CRUD-Demo-Backend\Signal-CRUD-Demo-Backend\b
 C:\Users\nawsad\source\repos\Signal-CRUD-Demo-Backend\Signal-CRUD-Demo-Backend\bin\Debug\net10.0\runtimes\win-arm64\native\e_sqlite3.dll
 C:\Users\nawsad\source\repos\Signal-CRUD-Demo-Backend\Signal-CRUD-Demo-Backend\bin\Debug\net10.0\runtimes\win-x64\native\e_sqlite3.dll
 C:\Users\nawsad\source\repos\Signal-CRUD-Demo-Backend\Signal-CRUD-Demo-Backend\bin\Debug\net10.0\runtimes\win-x86\native\e_sqlite3.dll
+C:\Users\nawsad\source\repos\Signal-CRUD-Demo-Backend\Signal-CRUD-Demo-Backend\obj\Debug\net10.0\Signal-CRUD-Demo-Backend.sourcelink.json
