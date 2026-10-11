@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 using Signal_CRUD_Demo_Backend.Data;
 using Signal_CRUD_Demo_Backend.Models;
 using Signal_CRUD_Demo_Backend.Services;
@@ -21,6 +22,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite($"Data Source={databasePath}");
 });
 builder.Services.AddScoped<IPostService, PostService>();
+builder.Services.AddScoped<IPasswordHasher<UserEntity>, PasswordHasher<UserEntity>>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 var app = builder.Build();
 
@@ -40,6 +43,17 @@ await using (var scope = app.Services.CreateAsyncScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await dbContext.Database.EnsureCreatedAsync();
+    await dbContext.Database.ExecuteSqlRawAsync(
+        """
+        CREATE TABLE IF NOT EXISTS "Users" (
+            "Id" INTEGER NOT NULL CONSTRAINT "PK_Users" PRIMARY KEY AUTOINCREMENT,
+            "Email" TEXT NOT NULL,
+            "PasswordHash" TEXT NOT NULL,
+            "DateOfBirth" TEXT NOT NULL
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS "IX_Users_Email" ON "Users" ("Email");
+        """);
+
     if (!await dbContext.Posts.AnyAsync())
     {
         dbContext.Posts.AddRange(Enumerable.Range(1, 100).Select(id => new PostEntity
@@ -47,6 +61,35 @@ await using (var scope = app.Services.CreateAsyncScope())
             Title = $"Post {id}",
             Body = $"This is the body of post {id}."
         }));
+        await dbContext.SaveChangesAsync();
+    }
+
+    if (app.Environment.IsDevelopment() && !await dbContext.Users.AnyAsync())
+    {
+        var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<UserEntity>>();
+        var testUsers = new[]
+        {
+            new UserEntity
+            {
+                Email = "alice@example.com",
+                PasswordHash = string.Empty,
+                DateOfBirth = new DateOnly(1995, 4, 12)
+            },
+            new UserEntity
+            {
+                Email = "bob@example.com",
+                PasswordHash = string.Empty,
+                DateOfBirth = new DateOnly(1990, 11, 3)
+            }
+        };
+        var testPasswords = new[] { "PosthubTest123!", "ReaderTest123!" };
+
+        for (var index = 0; index < testUsers.Length; index++)
+        {
+            testUsers[index].PasswordHash = hasher.HashPassword(testUsers[index], testPasswords[index]);
+        }
+
+        dbContext.Users.AddRange(testUsers);
         await dbContext.SaveChangesAsync();
     }
 }

@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Signal-CRUD-Demo-Backend")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+35f054143b045adb9c523df22992a1acd0f4adf8")]
 [assembly: System.Reflection.AssemblyProductAttribute("Signal-CRUD-Demo-Backend")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Signal-CRUD-Demo-Backend")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -31,3 +31,31 @@ DELETE {{Signal_CRUD_Demo_Backend_HostAddress}}/posts/1
 
 ### Missing post returns 404
 GET {{Signal_CRUD_Demo_Backend_HostAddress}}/posts/999999
+
+### Sign up
+POST {{Signal_CRUD_Demo_Backend_HostAddress}}/auth/sign-up
+Content-Type: application/json
+
+{
+  "email": "new.user@example.com",
+  "password": "SecureTest123!",
+  "dateOfBirth": "1998-06-15"
+}
+
+### Log in with the seeded development user
+POST {{Signal_CRUD_Demo_Backend_HostAddress}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "alice@example.com",
+  "password": "PosthubTest123!"
+}
+
+### Invalid login returns 401
+POST {{Signal_CRUD_Demo_Backend_HostAddress}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "alice@example.com",
+  "password": "wrong-password"
+}
