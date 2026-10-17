@@ -1,3 +1,8 @@
+using System.Globalization;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Signal_CRUD_Demo_Backend.Contracts;
 using Signal_CRUD_Demo_Backend.Services;
@@ -28,6 +33,7 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
             });
         }
 
+        await SignInUserAsync(user);
         return StatusCode(StatusCodes.Status201Created, user);
     }
 
@@ -51,7 +57,43 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
             });
         }
 
+        await SignInUserAsync(user);
         return Ok(user);
+    }
+
+    /// <summary>Returns the account associated with the current persistent session.</summary>
+    [Authorize]
+    [HttpGet("session")]
+    [ProducesResponseType<AuthUserResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+    public ActionResult<AuthUserResponse> GetSession()
+    {
+        var idValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var email = User.FindFirstValue(ClaimTypes.Email);
+        var dateOfBirthValue = User.FindFirstValue(ClaimTypes.DateOfBirth);
+
+        if (!int.TryParse(idValue, out var id) ||
+            string.IsNullOrWhiteSpace(email) ||
+            !DateOnly.TryParseExact(
+                dateOfBirthValue,
+                "yyyy-MM-dd",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out var dateOfBirth))
+        {
+            return Unauthorized();
+        }
+
+        return Ok(new AuthUserResponse(id, email, dateOfBirth));
+    }
+
+    /// <summary>Ends the current persistent session.</summary>
+    [HttpPost("logout")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Logout()
+    {
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        return NoContent();
     }
 
     /// <summary>Replaces the password for an existing account.</summary>
@@ -75,5 +117,27 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
         }
 
         return NoContent();
+    }
+
+    private Task SignInUserAsync(AuthUserResponse user)
+    {
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString(CultureInfo.InvariantCulture)),
+            new Claim(ClaimTypes.Email, user.Email),
+            new Claim(ClaimTypes.DateOfBirth, user.DateOfBirth.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))
+        };
+        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        var properties = new AuthenticationProperties
+        {
+            IsPersistent = true,
+            AllowRefresh = true,
+            ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7)
+        };
+
+        return HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(identity),
+            properties);
     }
 }
