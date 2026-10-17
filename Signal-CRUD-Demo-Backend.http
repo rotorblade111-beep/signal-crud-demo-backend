@@ -71,3 +71,21 @@ Content-Type: application/json
   "username": "alice@example.com",
   "password": "wrong-password"
 }
+
+### Reset a password
+POST {{Signal_CRUD_Demo_Backend_HostAddress}}/auth/reset-password
+Content-Type: application/json
+
+{
+  "email": "new.user@example.com",
+  "newPassword": "AnotherSecure123!"
+}
+
+### Reset a password for an unknown email returns 404
+POST {{Signal_CRUD_Demo_Backend_HostAddress}}/auth/reset-password
+Content-Type: application/json
+
+{
+  "email": "missing.user@example.com",
+  "newPassword": "AnotherSecure123!"
+}

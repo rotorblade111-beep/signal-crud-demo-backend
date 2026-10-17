@@ -63,6 +63,25 @@ public sealed class AuthService(
             : null;
     }
 
+    public async Task<bool> ResetPasswordAsync(
+        ResetPasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        var email = NormalizeEmail(request.Email);
+        var user = await dbContext.Users.SingleOrDefaultAsync(
+            candidate => candidate.Email == email,
+            cancellationToken);
+
+        if (user is null)
+        {
+            return false;
+        }
+
+        user.PasswordHash = passwordHasher.HashPassword(user, request.NewPassword);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
 
     private static AuthUserResponse ToResponse(UserEntity user) =>

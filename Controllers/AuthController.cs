@@ -53,4 +53,27 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
 
         return Ok(user);
     }
+
+    /// <summary>Replaces the password for an existing account.</summary>
+    [HttpPost("reset-password")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ResetPassword(
+        ResetPasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        var reset = await authService.ResetPasswordAsync(request, cancellationToken);
+        if (!reset)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Account not found",
+                Detail = "No account was found for that email address."
+            });
+        }
+
+        return NoContent();
+    }
 }
