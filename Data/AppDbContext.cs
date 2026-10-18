@@ -16,6 +16,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.HasKey(post => post.Id);
             entity.Property(post => post.Title).IsRequired().HasMaxLength(200);
             entity.Property(post => post.Body).IsRequired().HasMaxLength(10000);
+            entity.Property(post => post.CreatedAt).IsRequired();
         });
 
         modelBuilder.Entity<UserEntity>(entity =>

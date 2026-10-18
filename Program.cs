@@ -68,6 +68,38 @@ await using (var scope = app.Services.CreateAsyncScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await dbContext.Database.EnsureCreatedAsync();
+    var connection = dbContext.Database.GetDbConnection();
+    await connection.OpenAsync();
+    var hasCreatedAt = false;
+    await using (var command = connection.CreateCommand())
+    {
+        command.CommandText = "PRAGMA table_info('Posts');";
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            if (string.Equals(reader.GetString(1), "CreatedAt", StringComparison.OrdinalIgnoreCase))
+            {
+                hasCreatedAt = true;
+                break;
+            }
+        }
+    }
+
+    if (!hasCreatedAt)
+    {
+        await dbContext.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE "Posts"
+            ADD COLUMN "CreatedAt" TEXT NOT NULL DEFAULT '1970-01-01T00:00:00.000+00:00';
+            UPDATE "Posts"
+            SET "CreatedAt" = strftime(
+                '%Y-%m-%dT%H:%M:%f+00:00',
+                'now',
+                printf('-%d days', "Id"))
+            WHERE "CreatedAt" = '1970-01-01T00:00:00.000+00:00';
+            """);
+    }
+
     await dbContext.Database.ExecuteSqlRawAsync(
         """
         CREATE TABLE IF NOT EXISTS "Users" (
@@ -81,10 +113,12 @@ await using (var scope = app.Services.CreateAsyncScope())
 
     if (!await dbContext.Posts.AnyAsync())
     {
+        var seededAt = DateTimeOffset.UtcNow;
         dbContext.Posts.AddRange(Enumerable.Range(1, 100).Select(id => new PostEntity
         {
             Title = $"Post {id}",
-            Body = $"This is the body of post {id}."
+            Body = $"This is the body of post {id}.",
+            CreatedAt = seededAt.AddDays(-id)
         }));
         await dbContext.SaveChangesAsync();
     }

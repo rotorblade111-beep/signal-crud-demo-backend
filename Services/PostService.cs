@@ -11,7 +11,7 @@ public sealed class PostService(AppDbContext dbContext) : IPostService
         await dbContext.Posts
             .AsNoTracking()
             .OrderBy(post => post.Id)
-            .Select(post => new PostResponse(post.Id, post.Title, post.Body))
+            .Select(post => new PostResponse(post.Id, post.Title, post.Body, post.CreatedAt))
             .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<PostResponse>> GetRangeAsync(
@@ -23,14 +23,14 @@ public sealed class PostService(AppDbContext dbContext) : IPostService
             .OrderBy(post => post.Id)
             .Skip(offset)
             .Take(limit)
-            .Select(post => new PostResponse(post.Id, post.Title, post.Body))
+            .Select(post => new PostResponse(post.Id, post.Title, post.Body, post.CreatedAt))
             .ToListAsync(cancellationToken);
 
     public async Task<PostResponse?> GetByIdAsync(int id, CancellationToken cancellationToken) =>
         await dbContext.Posts
             .AsNoTracking()
             .Where(post => post.Id == id)
-            .Select(post => new PostResponse(post.Id, post.Title, post.Body))
+            .Select(post => new PostResponse(post.Id, post.Title, post.Body, post.CreatedAt))
             .SingleOrDefaultAsync(cancellationToken);
 
     public async Task<PostResponse> CreateAsync(CreatePostRequest request, CancellationToken cancellationToken)
@@ -38,7 +38,8 @@ public sealed class PostService(AppDbContext dbContext) : IPostService
         var post = new PostEntity
         {
             Title = request.Title.Trim(),
-            Body = request.Body.Trim()
+            Body = request.Body.Trim(),
+            CreatedAt = DateTimeOffset.UtcNow
         };
 
         dbContext.Posts.Add(post);
@@ -77,5 +78,5 @@ public sealed class PostService(AppDbContext dbContext) : IPostService
     }
 
     private static PostResponse ToResponse(PostEntity post) =>
-        new(post.Id, post.Title, post.Body);
+        new(post.Id, post.Title, post.Body, post.CreatedAt);
 }
