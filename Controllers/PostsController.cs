@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Signal_CRUD_Demo_Backend.Contracts;
 using Signal_CRUD_Demo_Backend.Services;
@@ -5,6 +6,7 @@ using Signal_CRUD_Demo_Backend.Services;
 namespace Signal_CRUD_Demo_Backend.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("posts")]
 public sealed class PostsController(IPostService postService) : ControllerBase
 {

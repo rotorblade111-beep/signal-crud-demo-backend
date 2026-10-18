@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Signal-CRUD-Demo-Backend")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8d546618f7aa62cb8b25a321fb428be787c9e0e0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ba9cc2247ad7f72b086c3a2393b5f942aa27f81d")]
 [assembly: System.Reflection.AssemblyProductAttribute("Signal-CRUD-Demo-Backend")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Signal-CRUD-Demo-Backend")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
