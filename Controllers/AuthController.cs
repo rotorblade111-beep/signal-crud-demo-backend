@@ -1,8 +1,3 @@
-using System.Globalization;
-using System.Security.Claims;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Signal_CRUD_Demo_Backend.Contracts;
 using Signal_CRUD_Demo_Backend.Services;
@@ -15,10 +10,10 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
 {
     /// <summary>Registers an account.</summary>
     [HttpPost("sign-up")]
-    [ProducesResponseType<AuthUserResponse>(StatusCodes.Status201Created)]
+    [ProducesResponseType<AuthTokenResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-    public async Task<ActionResult<AuthUserResponse>> SignUp(
+    public async Task<ActionResult<AuthTokenResponse>> SignUp(
         SignUpRequest request,
         CancellationToken cancellationToken)
     {
@@ -33,16 +28,17 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
             });
         }
 
-        await SignInUserAsync(user);
-        return StatusCode(StatusCodes.Status201Created, user);
+        var session = await authService.CreateSessionAsync(user, cancellationToken);
+        SetRefreshTokenCookie(session);
+        return StatusCode(StatusCodes.Status201Created, ToTokenResponse(session));
     }
 
     /// <summary>Verifies an account's login credentials.</summary>
     [HttpPost("login")]
-    [ProducesResponseType<AuthUserResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<AuthTokenResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<AuthUserResponse>> Login(
+    public async Task<ActionResult<AuthTokenResponse>> Login(
         LoginRequest request,
         CancellationToken cancellationToken)
     {
@@ -57,42 +53,49 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
             });
         }
 
-        await SignInUserAsync(user);
-        return Ok(user);
+        var session = await authService.CreateSessionAsync(user, cancellationToken);
+        SetRefreshTokenCookie(session);
+        return Ok(ToTokenResponse(session));
     }
 
-    /// <summary>Returns the account associated with the current persistent session.</summary>
-    [Authorize]
-    [HttpGet("session")]
-    [ProducesResponseType<AuthUserResponse>(StatusCodes.Status200OK)]
+    /// <summary>Rotates a refresh token and returns a fresh access token.</summary>
+    [HttpPost("refresh")]
+    [ProducesResponseType<AuthTokenResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
-    public ActionResult<AuthUserResponse> GetSession()
+    public async Task<ActionResult<AuthTokenResponse>> Refresh(CancellationToken cancellationToken)
     {
-        var idValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var email = User.FindFirstValue(ClaimTypes.Email);
-        var dateOfBirthValue = User.FindFirstValue(ClaimTypes.DateOfBirth);
-
-        if (!int.TryParse(idValue, out var id) ||
-            string.IsNullOrWhiteSpace(email) ||
-            !DateOnly.TryParseExact(
-                dateOfBirthValue,
-                "yyyy-MM-dd",
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.None,
-                out var dateOfBirth))
+        var refreshToken = Request.Cookies[RefreshTokenCookieName];
+        if (string.IsNullOrWhiteSpace(refreshToken))
         {
+            ClearRefreshTokenCookie();
             return Unauthorized();
         }
 
-        return Ok(new AuthUserResponse(id, email, dateOfBirth));
+        var session = await authService.RefreshSessionAsync(refreshToken, cancellationToken);
+        if (session is null)
+        {
+            ClearRefreshTokenCookie();
+            return Unauthorized(new ProblemDetails
+            {
+                Status = StatusCodes.Status401Unauthorized,
+                Title = "Invalid refresh token",
+                Detail = "The refresh token is invalid or expired."
+            });
+        }
+
+        SetRefreshTokenCookie(session);
+        return Ok(ToTokenResponse(session));
     }
 
-    /// <summary>Ends the current persistent session.</summary>
+    /// <summary>Revokes the current refresh token and ends its session.</summary>
     [HttpPost("logout")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> Logout()
+    public async Task<IActionResult> Logout(CancellationToken cancellationToken)
     {
-        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        await authService.RevokeRefreshTokenAsync(
+            Request.Cookies[RefreshTokenCookieName],
+            cancellationToken);
+        ClearRefreshTokenCookie();
         return NoContent();
     }
 
@@ -119,25 +122,36 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
         return NoContent();
     }
 
-    private Task SignInUserAsync(AuthUserResponse user)
-    {
-        var claims = new[]
-        {
-            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString(CultureInfo.InvariantCulture)),
-            new Claim(ClaimTypes.Email, user.Email),
-            new Claim(ClaimTypes.DateOfBirth, user.DateOfBirth.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))
-        };
-        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-        var properties = new AuthenticationProperties
-        {
-            IsPersistent = true,
-            AllowRefresh = true,
-            ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7)
-        };
+    private const string RefreshTokenCookieName = "SignalCrudDemo.Refresh";
 
-        return HttpContext.SignInAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            new ClaimsPrincipal(identity),
-            properties);
+    private void SetRefreshTokenCookie(AuthSessionTokens session)
+    {
+        Response.Cookies.Append(
+            RefreshTokenCookieName,
+            session.RefreshToken,
+            new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = Request.IsHttps,
+                SameSite = SameSiteMode.Lax,
+                Path = "/auth",
+                Expires = session.RefreshTokenExpiresAt
+            });
     }
+
+    private void ClearRefreshTokenCookie()
+    {
+        Response.Cookies.Delete(
+            RefreshTokenCookieName,
+            new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = Request.IsHttps,
+                SameSite = SameSiteMode.Lax,
+                Path = "/auth"
+            });
+    }
+
+    private static AuthTokenResponse ToTokenResponse(AuthSessionTokens session) =>
+        new(session.User, session.AccessToken, session.AccessTokenExpiresAt);
 }

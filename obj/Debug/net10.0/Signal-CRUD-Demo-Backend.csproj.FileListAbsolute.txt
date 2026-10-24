@@ -99,3 +99,12 @@ C:\Users\nawsad\AppData\Local\Temp\signal-crud-backend-build-session-final\Debug
 C:\Users\nawsad\AppData\Local\Temp\signal-crud-backend-build-session-final\Debug\net10.0\Signal-CRUD-Demo-Backend.runtimeconfig.json
 C:\Users\nawsad\AppData\Local\Temp\signal-crud-backend-build-session-final\Debug\net10.0\Signal-CRUD-Demo-Backend.dll
 C:\Users\nawsad\AppData\Local\Temp\signal-crud-backend-build-session-final\Debug\net10.0\Signal-CRUD-Demo-Backend.pdb
+C:\Users\nawsad\source\repos\Signal-CRUD-Demo-Backend\Signal-CRUD-Demo-Backend\bin\Debug\net10.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
+C:\Users\nawsad\source\repos\Signal-CRUD-Demo-Backend\Signal-CRUD-Demo-Backend\bin\Debug\net10.0\Microsoft.Bcl.Cryptography.dll
+C:\Users\nawsad\source\repos\Signal-CRUD-Demo-Backend\Signal-CRUD-Demo-Backend\bin\Debug\net10.0\Microsoft.IdentityModel.Abstractions.dll
+C:\Users\nawsad\source\repos\Signal-CRUD-Demo-Backend\Signal-CRUD-Demo-Backend\bin\Debug\net10.0\Microsoft.IdentityModel.JsonWebTokens.dll
+C:\Users\nawsad\source\repos\Signal-CRUD-Demo-Backend\Signal-CRUD-Demo-Backend\bin\Debug\net10.0\Microsoft.IdentityModel.Logging.dll
+C:\Users\nawsad\source\repos\Signal-CRUD-Demo-Backend\Signal-CRUD-Demo-Backend\bin\Debug\net10.0\Microsoft.IdentityModel.Protocols.dll
+C:\Users\nawsad\source\repos\Signal-CRUD-Demo-Backend\Signal-CRUD-Demo-Backend\bin\Debug\net10.0\Microsoft.IdentityModel.Protocols.OpenIdConnect.dll
+C:\Users\nawsad\source\repos\Signal-CRUD-Demo-Backend\Signal-CRUD-Demo-Backend\bin\Debug\net10.0\Microsoft.IdentityModel.Tokens.dll
+C:\Users\nawsad\source\repos\Signal-CRUD-Demo-Backend\Signal-CRUD-Demo-Backend\bin\Debug\net10.0\System.IdentityModel.Tokens.Jwt.dll

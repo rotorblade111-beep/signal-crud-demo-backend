@@ -1,32 +1,37 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using Signal_CRUD_Demo_Backend.Data;
 using Signal_CRUD_Demo_Backend.Models;
 using Signal_CRUD_Demo_Backend.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var signingKey = builder.Configuration["Authentication:Jwt:SigningKey"]
+    ?? throw new InvalidOperationException(
+        "Configure Authentication:Jwt:SigningKey with a secret of at least 32 UTF-8 bytes.");
+if (Encoding.UTF8.GetByteCount(signingKey) < 32)
+{
+    throw new InvalidOperationException(
+        "Authentication:Jwt:SigningKey must contain at least 32 UTF-8 bytes.");
+}
+
 builder.Services.AddControllers();
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(options =>
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
     {
-        options.Cookie.Name = "SignalCrudDemo.Auth";
-        options.Cookie.HttpOnly = true;
-        options.Cookie.SameSite = SameSiteMode.Lax;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-        options.Cookie.MaxAge = TimeSpan.FromDays(7);
-        options.ExpireTimeSpan = TimeSpan.FromDays(7);
-        options.SlidingExpiration = true;
-        options.Events.OnRedirectToLogin = context =>
+        options.TokenValidationParameters = new TokenValidationParameters
         {
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            return Task.CompletedTask;
-        };
-        options.Events.OnRedirectToAccessDenied = context =>
-        {
-            context.Response.StatusCode = StatusCodes.Status403Forbidden;
-            return Task.CompletedTask;
+            ValidateIssuer = true,
+            ValidIssuer = AccessTokenService.Issuer,
+            ValidateAudience = true,
+            ValidAudience = AccessTokenService.Audience,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
+            ClockSkew = TimeSpan.FromSeconds(30)
         };
     });
 builder.Services.AddAuthorization();
@@ -48,6 +53,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IPostService, PostService>();
 builder.Services.AddScoped<IPasswordHasher<UserEntity>, PasswordHasher<UserEntity>>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddSingleton<IAccessTokenService>(_ => new AccessTokenService(signingKey));
 
 var app = builder.Build();
 
@@ -109,6 +115,19 @@ await using (var scope = app.Services.CreateAsyncScope())
             "DateOfBirth" TEXT NOT NULL
         );
         CREATE UNIQUE INDEX IF NOT EXISTS "IX_Users_Email" ON "Users" ("Email");
+        """);
+    await dbContext.Database.ExecuteSqlRawAsync(
+        """
+        CREATE TABLE IF NOT EXISTS "RefreshTokens" (
+            "Id" INTEGER NOT NULL CONSTRAINT "PK_RefreshTokens" PRIMARY KEY AUTOINCREMENT,
+            "UserId" INTEGER NOT NULL,
+            "TokenHash" TEXT NOT NULL,
+            "ExpiresAt" TEXT NOT NULL,
+            "RevokedAt" TEXT NULL,
+            CONSTRAINT "FK_RefreshTokens_Users_UserId" FOREIGN KEY ("UserId") REFERENCES "Users" ("Id") ON DELETE CASCADE
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS "IX_RefreshTokens_TokenHash" ON "RefreshTokens" ("TokenHash");
+        CREATE INDEX IF NOT EXISTS "IX_RefreshTokens_UserId" ON "RefreshTokens" ("UserId");
         """);
 
     if (!await dbContext.Posts.AnyAsync())

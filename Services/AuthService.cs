@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.Sqlite;
@@ -9,8 +11,11 @@ namespace Signal_CRUD_Demo_Backend.Services;
 
 public sealed class AuthService(
     AppDbContext dbContext,
-    IPasswordHasher<UserEntity> passwordHasher) : IAuthService
+    IPasswordHasher<UserEntity> passwordHasher,
+    IAccessTokenService accessTokenService) : IAuthService
 {
+    private static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(30);
+
     public async Task<AuthUserResponse?> RegisterAsync(
         SignUpRequest request,
         CancellationToken cancellationToken)
@@ -63,6 +68,108 @@ public sealed class AuthService(
             : null;
     }
 
+    public async Task<AuthSessionTokens> CreateSessionAsync(
+        AuthUserResponse user,
+        CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var refreshToken = CreateRefreshToken();
+        var refreshTokenExpiresAt = now.Add(RefreshTokenLifetime);
+        dbContext.RefreshTokens.Add(new RefreshTokenEntity
+        {
+            UserId = user.Id,
+            TokenHash = HashRefreshToken(refreshToken),
+            ExpiresAt = refreshTokenExpiresAt
+        });
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var (accessToken, accessTokenExpiresAt) = accessTokenService.CreateToken(user);
+        return new AuthSessionTokens(
+            user,
+            accessToken,
+            accessTokenExpiresAt,
+            refreshToken,
+            refreshTokenExpiresAt);
+    }
+
+    public async Task<AuthSessionTokens?> RefreshSessionAsync(
+        string refreshToken,
+        CancellationToken cancellationToken)
+    {
+        var tokenHash = HashRefreshToken(refreshToken);
+        var now = DateTimeOffset.UtcNow;
+        var storedToken = await dbContext.RefreshTokens
+            .AsNoTracking()
+            .SingleOrDefaultAsync(token => token.TokenHash == tokenHash, cancellationToken);
+        if (storedToken is null || storedToken.RevokedAt is not null || storedToken.ExpiresAt <= now)
+        {
+            return null;
+        }
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        var revoked = await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+            UPDATE "RefreshTokens"
+            SET "RevokedAt" = {now}
+            WHERE "Id" = {storedToken.Id}
+                AND "RevokedAt" IS NULL
+                AND julianday("ExpiresAt") > julianday({now});
+            """,
+            cancellationToken);
+        if (revoked != 1)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return null;
+        }
+
+        var user = await dbContext.Users
+            .AsNoTracking()
+            .SingleOrDefaultAsync(user => user.Id == storedToken.UserId, cancellationToken);
+        if (user is null)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return null;
+        }
+
+        var response = ToResponse(user);
+        var newRefreshToken = CreateRefreshToken();
+        var newRefreshTokenExpiresAt = now.Add(RefreshTokenLifetime);
+        dbContext.RefreshTokens.Add(new RefreshTokenEntity
+        {
+            UserId = user.Id,
+            TokenHash = HashRefreshToken(newRefreshToken),
+            ExpiresAt = newRefreshTokenExpiresAt
+        });
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        var (accessToken, accessTokenExpiresAt) = accessTokenService.CreateToken(response);
+        return new AuthSessionTokens(
+            response,
+            accessToken,
+            accessTokenExpiresAt,
+            newRefreshToken,
+            newRefreshTokenExpiresAt);
+    }
+
+    public async Task RevokeRefreshTokenAsync(
+        string? refreshToken,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            return;
+        }
+
+        var tokenHash = HashRefreshToken(refreshToken);
+        var now = DateTimeOffset.UtcNow;
+        await dbContext.RefreshTokens
+            .Where(token => token.TokenHash == tokenHash && token.RevokedAt == null)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(token => token.RevokedAt, now),
+                cancellationToken);
+    }
+
     public async Task<bool> ResetPasswordAsync(
         ResetPasswordRequest request,
         CancellationToken cancellationToken)
@@ -83,6 +190,12 @@ public sealed class AuthService(
     }
 
     private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
+
+    private static string CreateRefreshToken() =>
+        Microsoft.AspNetCore.WebUtilities.WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(64));
+
+    private static string HashRefreshToken(string refreshToken) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(refreshToken)));
 
     private static AuthUserResponse ToResponse(UserEntity user) =>
         new(user.Id, user.Email, user.DateOfBirth);

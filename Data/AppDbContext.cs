@@ -7,6 +7,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 {
     public DbSet<PostEntity> Posts => Set<PostEntity>();
     public DbSet<UserEntity> Users => Set<UserEntity>();
+    public DbSet<RefreshTokenEntity> RefreshTokens => Set<RefreshTokenEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -27,6 +28,20 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.HasIndex(user => user.Email).IsUnique();
             entity.Property(user => user.PasswordHash).IsRequired().HasMaxLength(512);
             entity.Property(user => user.DateOfBirth).IsRequired();
+        });
+
+        modelBuilder.Entity<RefreshTokenEntity>(entity =>
+        {
+            entity.ToTable("RefreshTokens");
+            entity.HasKey(token => token.Id);
+            entity.HasIndex(token => token.TokenHash).IsUnique();
+            entity.HasIndex(token => token.UserId);
+            entity.Property(token => token.TokenHash).IsRequired().HasMaxLength(64);
+            entity.Property(token => token.ExpiresAt).IsRequired();
+            entity.HasOne<UserEntity>()
+                .WithMany()
+                .HasForeignKey(token => token.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
