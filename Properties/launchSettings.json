@@ -7,7 +7,8 @@
       "launchBrowser": true,
       "applicationUrl": "http://localhost:5093",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Authentication__Jwt__SigningKey": "A SUPER DUPER SECURE JWT SIGNING KEY GENERATED OUT OF MY BACKSIDE."
       }
     },
     "https": {
@@ -16,7 +17,8 @@
       "launchBrowser": true,
       "applicationUrl": "https://localhost:7069;http://localhost:5093",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Authentication__Jwt__SigningKey": "A SUPER DUPER SECURE JWT SIGNING KEY GENERATED OUT OF MY BACKSIDE."
       }
     }
   }

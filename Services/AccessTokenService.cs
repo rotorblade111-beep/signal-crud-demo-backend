@@ -10,7 +10,7 @@ public sealed class AccessTokenService : IAccessTokenService
 {
     public const string Issuer = "SignalCrudDemo";
     public const string Audience = "SignalCrudDemoFrontend";
-    public static readonly TimeSpan TokenLifetime = TimeSpan.FromMinutes(15);
+    public static readonly TimeSpan TokenLifetime = TimeSpan.FromMinutes(1);
 
     private readonly SigningCredentials signingCredentials;
 
