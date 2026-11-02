@@ -18,6 +18,11 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(post => post.Title).IsRequired().HasMaxLength(200);
             entity.Property(post => post.Body).IsRequired().HasMaxLength(10000);
             entity.Property(post => post.CreatedAt).IsRequired();
+            entity.HasIndex(post => post.UserId);
+            entity.HasOne(post => post.User)
+                .WithMany()
+                .HasForeignKey(post => post.UserId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<UserEntity>(entity =>

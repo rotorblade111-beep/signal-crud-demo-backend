@@ -116,6 +116,32 @@ await using (var scope = app.Services.CreateAsyncScope())
         );
         CREATE UNIQUE INDEX IF NOT EXISTS "IX_Users_Email" ON "Users" ("Email");
         """);
+    var hasUserId = false;
+    await using (var command = connection.CreateCommand())
+    {
+        command.CommandText = "PRAGMA table_info('Posts');";
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            if (string.Equals(reader.GetString(1), "UserId", StringComparison.OrdinalIgnoreCase))
+            {
+                hasUserId = true;
+                break;
+            }
+        }
+    }
+
+    if (!hasUserId)
+    {
+        await dbContext.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE "Posts"
+            ADD COLUMN "UserId" INTEGER NULL
+            REFERENCES "Users" ("Id") ON DELETE SET NULL;
+            """);
+    }
+    await dbContext.Database.ExecuteSqlRawAsync(
+        """CREATE INDEX IF NOT EXISTS "IX_Posts_UserId" ON "Posts" ("UserId");""");
     await dbContext.Database.ExecuteSqlRawAsync(
         """
         CREATE TABLE IF NOT EXISTS "RefreshTokens" (
@@ -170,6 +196,14 @@ await using (var scope = app.Services.CreateAsyncScope())
         dbContext.Users.AddRange(testUsers);
         await dbContext.SaveChangesAsync();
     }
+
+    await dbContext.Database.ExecuteSqlRawAsync(
+        """
+        UPDATE "Posts"
+        SET "UserId" = (SELECT MIN("Id") FROM "Users")
+        WHERE "UserId" IS NULL
+            AND EXISTS (SELECT 1 FROM "Users");
+        """);
 }
 
 app.Run();

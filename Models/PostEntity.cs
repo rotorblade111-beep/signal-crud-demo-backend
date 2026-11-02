@@ -6,4 +6,6 @@ public sealed class PostEntity
     public required string Title { get; set; }
     public required string Body { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    public int? UserId { get; set; }
+    public UserEntity? User { get; set; }
 }

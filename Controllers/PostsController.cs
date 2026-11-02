@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Globalization;
+using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
 using Signal_CRUD_Demo_Backend.Contracts;
 using Signal_CRUD_Demo_Backend.Services;
 
@@ -15,13 +18,21 @@ public sealed class PostsController(IPostService postService) : ControllerBase
     [ProducesResponseType<IReadOnlyList<PostResponse>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<IReadOnlyList<PostResponse>>> GetAll(
+        [FromQuery] int? userId,
         [FromQuery] int? offset,
         [FromQuery] int? limit,
         CancellationToken cancellationToken)
     {
+        if (userId is <= 0)
+        {
+            ModelState.AddModelError(nameof(userId), "User ID must be greater than zero.");
+        }
+
         if (offset is null && limit is null)
         {
-            return Ok(await postService.GetAllAsync(cancellationToken));
+            return ModelState.IsValid
+                ? Ok(await postService.GetAllAsync(userId, cancellationToken))
+                : ValidationProblem(ModelState);
         }
 
         if (offset is null || limit is null)
@@ -43,7 +54,11 @@ public sealed class PostsController(IPostService postService) : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        return Ok(await postService.GetRangeAsync(offset.Value, limit.Value, cancellationToken));
+        return Ok(await postService.GetRangeAsync(
+            userId,
+            offset.Value,
+            limit.Value,
+            cancellationToken));
     }
 
     /// <summary>Gets a post by ID.</summary>
@@ -64,7 +79,13 @@ public sealed class PostsController(IPostService postService) : ControllerBase
         CreatePostRequest request,
         CancellationToken cancellationToken)
     {
-        var post = await postService.CreateAsync(request, cancellationToken);
+        var userId = CurrentUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        var post = await postService.CreateAsync(userId.Value, request, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = post.Id }, post);
     }
 
@@ -78,7 +99,13 @@ public sealed class PostsController(IPostService postService) : ControllerBase
         UpdatePostRequest request,
         CancellationToken cancellationToken)
     {
-        var post = await postService.UpdateAsync(id, request, cancellationToken);
+        var userId = CurrentUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        var post = await postService.UpdateAsync(id, userId.Value, request, cancellationToken);
         return post is null ? NotFound() : Ok(post);
     }
 
@@ -88,7 +115,23 @@ public sealed class PostsController(IPostService postService) : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
-        var deleted = await postService.DeleteAsync(id, cancellationToken);
+        var userId = CurrentUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        var deleted = await postService.DeleteAsync(id, userId.Value, cancellationToken);
         return deleted ? NoContent() : NotFound();
+    }
+
+    private int? CurrentUserId()
+    {
+        var subject = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        return int.TryParse(subject, NumberStyles.None, CultureInfo.InvariantCulture, out var userId)
+            && userId > 0
+                ? userId
+                : null;
     }
 }
