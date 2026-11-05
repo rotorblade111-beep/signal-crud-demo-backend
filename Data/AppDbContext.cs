@@ -7,6 +7,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 {
     public DbSet<PostEntity> Posts => Set<PostEntity>();
     public DbSet<UserEntity> Users => Set<UserEntity>();
+    public DbSet<UserProfileEntity> UserProfiles => Set<UserProfileEntity>();
     public DbSet<RefreshTokenEntity> RefreshTokens => Set<RefreshTokenEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -33,6 +34,20 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.HasIndex(user => user.Email).IsUnique();
             entity.Property(user => user.PasswordHash).IsRequired().HasMaxLength(512);
             entity.Property(user => user.DateOfBirth).IsRequired();
+            entity.HasOne(user => user.Profile)
+                .WithOne(profile => profile.User)
+                .HasForeignKey<UserProfileEntity>(profile => profile.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<UserProfileEntity>(entity =>
+        {
+            entity.ToTable("UserProfiles");
+            entity.HasKey(profile => profile.UserId);
+            entity.Property(profile => profile.FirstName).HasMaxLength(100);
+            entity.Property(profile => profile.LastName).HasMaxLength(100);
+            entity.Property(profile => profile.Address).HasMaxLength(500);
+            entity.Property(profile => profile.Country).HasMaxLength(100);
         });
 
         modelBuilder.Entity<RefreshTokenEntity>(entity =>

@@ -1,4 +1,5 @@
 @Signal_CRUD_Demo_Backend_HostAddress = http://localhost:5093
+@accessToken = paste-access-token-here
 
 ### Get all posts
 GET {{Signal_CRUD_Demo_Backend_HostAddress}}/posts
@@ -88,4 +89,57 @@ Content-Type: application/json
 {
   "email": "missing.user@example.com",
   "newPassword": "AnotherSecure123!"
+}
+
+### Get the authenticated user's profile
+GET {{Signal_CRUD_Demo_Backend_HostAddress}}/profile
+Authorization: Bearer {{accessToken}}
+
+### Update personal information
+PUT {{Signal_CRUD_Demo_Backend_HostAddress}}/profile/personal-information
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "firstName": "Alice",
+  "lastName": "Example",
+  "dateOfBirth": "1995-04-12",
+  "address": "123 Example Street",
+  "country": "United States"
+}
+
+### Update account email
+PUT {{Signal_CRUD_Demo_Backend_HostAddress}}/profile/email
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "email": "alice.updated@example.com"
+}
+
+### Change authenticated account password
+PUT {{Signal_CRUD_Demo_Backend_HostAddress}}/profile/password
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "newPassword": "AnotherSecure123!"
+}
+
+### Duplicate email returns 409
+PUT {{Signal_CRUD_Demo_Backend_HostAddress}}/profile/email
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "email": "bob@example.com"
+}
+
+### Invalid personal information returns 400
+PUT {{Signal_CRUD_Demo_Backend_HostAddress}}/profile/personal-information
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "dateOfBirth": "2099-01-01"
 }

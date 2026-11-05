@@ -51,6 +51,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite($"Data Source={databasePath}");
 });
 builder.Services.AddScoped<IPostService, PostService>();
+builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IPasswordHasher<UserEntity>, PasswordHasher<UserEntity>>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddSingleton<IAccessTokenService>(_ => new AccessTokenService(signingKey));
@@ -115,6 +116,18 @@ await using (var scope = app.Services.CreateAsyncScope())
             "DateOfBirth" TEXT NOT NULL
         );
         CREATE UNIQUE INDEX IF NOT EXISTS "IX_Users_Email" ON "Users" ("Email");
+        """);
+    await dbContext.Database.ExecuteSqlRawAsync(
+        """
+        CREATE TABLE IF NOT EXISTS "UserProfiles" (
+            "UserId" INTEGER NOT NULL CONSTRAINT "PK_UserProfiles" PRIMARY KEY,
+            "FirstName" TEXT NULL,
+            "LastName" TEXT NULL,
+            "Address" TEXT NULL,
+            "Country" TEXT NULL,
+            CONSTRAINT "FK_UserProfiles_Users_UserId"
+                FOREIGN KEY ("UserId") REFERENCES "Users" ("Id") ON DELETE CASCADE
+        );
         """);
     var hasUserId = false;
     await using (var command = connection.CreateCommand())
